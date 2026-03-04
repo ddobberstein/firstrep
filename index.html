@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verortungs-Check – Löwenstein Medical Technology</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; min-height: 100vh; }
+    #root { min-height: 100vh; }
+    button { font-family: inherit; }
+    input { font-family: inherit; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useCallback } = React;
+
+const WEIGHTS = [30, 25, 20, 12, 8, 5];
+
+const guidelines = [
+  {
+    id: "kundenorientierung",
+    title: "Kundenorientierung & -bindung",
+    color: "#0369a1",
+    icon: "\u2665",
+    rank: 1,
+    weight: WEIGHTS[0],
+    questions: [
+      { id: "k1", text: "Ermöglicht die Verortung eine reaktionsschnelle Betreuung der Kunden (intern oder extern)?", hint: "Funktionen mit direktem Kundenkontakt (Sales, Service, Customer Success) sollten nahe am Kunden organisiert sein." },
+      { id: "k2", text: "Wird durch die Zuordnung ein \"One Face to Customer\" unterstützt?", hint: "Der Kunde sollte einen klaren Ansprechpartner haben – keine Doppelzuständigkeiten oder unklare Schnittstellen." },
+      { id: "k3", text: "Können kundennahe Entscheidungen in der zugeordneten Einheit eigenständig getroffen werden?", hint: "Dezentrale Entscheidungsautonomie für marktnahe Funktionen (Vertrieb, lokale Marktbearbeitung, Produktion, Products)." },
+    ]
+  },
+  {
+    id: "agilitaet",
+    title: "Agilität",
+    color: "#059669",
+    icon: "\u26A1",
+    rank: 2,
+    weight: WEIGHTS[1],
+    questions: [
+      { id: "a1", text: "Kann die Einheit schnell auf Marktveränderungen reagieren, ohne lange Abstimmungswege?", hint: "Kurze Entscheidungswege und Delegation an die kompetentesten Stellen prüfen." },
+      { id: "a2", text: "Wird die Time-to-Market durch die Verortung verkürzt (oder zumindest nicht verlängert)?", hint: "Ressourcen in Products sollten Value Streams zugeordnet sein für Fokus und Planbarkeit." },
+      { id: "a3", text: "Bleibt die Führungsspanne überschaubar genug für schnelle Entscheidungen?", hint: "Flache Hierarchien, angepasste Führungsspannen ermöglichen zielführende Führung." },
+    ]
+  },
+  {
+    id: "synergien",
+    title: "Synergien",
+    color: "#d97706",
+    icon: "\uD83D\uDD17",
+    rank: 3,
+    weight: WEIGHTS[2],
+    questions: [
+      { id: "s1", text: "Werden durch die Verortung Doppelarbeiten und Redundanzen vermieden?", hint: "Zentrale Funktionen (IT, HR, Legal, Finance, Marketing, Einkauf, QM/RA) bündeln, was für alle Bereiche ähnlich funktioniert." },
+      { id: "s2", text: "Können Ressourcen und Know-how bereichsübergreifend genutzt werden?", hint: "Übergeordnete Klammern (z.B. in der E&O Holding) fördern Austausch und Synergiehebung." },
+      { id: "s3", text: "Ist die Funktion an der Stelle verortet, wo sie den größten Hebel für die Gruppe entfaltet?", hint: "Unterscheide: Unternehmensholding (gruppenweite Services) vs. M&E Holding (engineering-spezifisch) vs. lokal." },
+    ]
+  },
+  {
+    id: "steuerbarkeit",
+    title: "Steuerbarkeit",
+    color: "#7c3aed",
+    icon: "\uD83D\uDCCA",
+    rank: 4,
+    weight: WEIGHTS[3],
+    questions: [
+      { id: "st1", text: "Gibt es eine klare Zielableitung von der Gruppenstrategie bis zur Funktion?", hint: "Der gruppenweite Strategieprozess muss bis in die Einheit durchgreifen – KPI-Reporting, Townhalls etc." },
+      { id: "st2", text: "Ist transparent messbar, ob die Funktion ihren Beitrag leistet?", hint: "Standardisierte Berichtsformate, Controlling und dokumentierte Board-Entscheidungen sicherstellen." },
+      { id: "st3", text: "Ist die Governance-Struktur (Berichtslinien, Gremien, Eskalationswege) klar definiert?", hint: "Gremien mit Teilnehmern, Zielen, Aufgaben und Berichtsformaten genau definieren." },
+    ]
+  },
+  {
+    id: "fundament",
+    title: "Fundament",
+    color: "#be185d",
+    icon: "\uD83C\uDFD7",
+    rank: 5,
+    weight: WEIGHTS[4],
+    questions: [
+      { id: "f1", text: "Ist die Struktur belastbar und weiterentwickelbar (auch bei Wachstum)?", hint: "Die nächsten 5 Jahre Wachstum, dann Stagnation – Struktur muss beides tragen." },
+      { id: "f2", text: "Unterstützt die Verortung die Integration aller Töchter in die Gruppenstrategie?", hint: "WilaMed, IFM, Medigroba, Sanimed – alle müssen eingebunden und im Board repräsentiert sein." },
+      { id: "f3", text: "Wird die stabile Versorgung und Lieferfähigkeit während der Transformation gesichert?", hint: "Laufenden Betrieb nicht gefährden – Fokus auf Kernprozesse und Lieferfähigkeit." },
+    ]
+  },
+  {
+    id: "einfachheit",
+    title: "Einfachheit",
+    color: "#ea580c",
+    icon: "\u2728",
+    rank: 6,
+    weight: WEIGHTS[5],
+    questions: [
+      { id: "e1", text: "Ist die Zuordnung für Mitarbeitende leicht verständlich und nachvollziehbar?", hint: "\"Die Struktur sollte in 10 Minuten erklärbar sein\" – über 90% der MA sollten sie verstehen." },
+      { id: "e2", text: "Sind Rollen und Verantwortlichkeiten klar und überschneidungsfrei definiert?", hint: "Klare Prozesse und transparente Rollen – keine Doppelzuständigkeiten." },
+      { id: "e3", text: "Sind die internen Prozesse so einfach und effizient wie möglich gestaltet?", hint: "Intern effizient, extern klar – wer ist für was zuständig?" },
+    ]
+  },
+];
+
+const ANSWER_OPTIONS = [
+  { value: "yes", label: "Ja", emoji: "\u2705", bg: "#dcfce7", border: "#16a34a", score: 1.0 },
+  { value: "partial", label: "Teilweise", emoji: "\uD83D\uDFE1", bg: "#fef9c3", border: "#ca8a04", score: 0.5 },
+  { value: "no", label: "Nein", emoji: "\u274C", bg: "#fee2e2", border: "#dc2626", score: 0.0 },
+  { value: "unclear", label: "Unklar", emoji: "\u2753", bg: "#f3f4f6", border: "#6b7280", score: null },
+];
+
+function computeWeightedScore(answers) {
+  let weightedSum = 0;
+  let weightUsed = 0;
+  guidelines.forEach(g => {
+    const qAnswered = g.questions.filter(q => answers[q.id] && answers[q.id] !== "unclear");
+    if (qAnswered.length === 0) return;
+    const sectionScore = qAnswered.reduce((acc, q) => {
+      const opt = ANSWER_OPTIONS.find(o => o.value === answers[q.id]);
+      return acc + (opt?.score ?? 0);
+    }, 0) / qAnswered.length;
+    weightedSum += sectionScore * g.weight;
+    weightUsed += g.weight;
+  });
+  if (weightUsed === 0) return null;
+  return Math.round((weightedSum / weightUsed) * 100);
+}
+
+function computeSectionScore(guideline, answers) {
+  const qAnswered = guideline.questions.filter(q => answers[q.id] && answers[q.id] !== "unclear");
+  if (qAnswered.length === 0) return null;
+  const raw = qAnswered.reduce((acc, q) => {
+    const opt = ANSWER_OPTIONS.find(o => o.value === answers[q.id]);
+    return acc + (opt?.score ?? 0);
+  }, 0) / qAnswered.length;
+  return Math.round(raw * 100);
+}
+
+function WeightBadge({ weight }) {
+  return (
+    <div style={{
+      width: 44, height: 44, borderRadius: "50%",
+      background: `conic-gradient(#003056 ${weight * 3.6}deg, #e5e7eb ${weight * 3.6}deg)`,
+      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+    }}>
+      <div style={{
+        width: 38, height: 38, borderRadius: "50%", background: "#fff",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 13, fontWeight: 800, color: "#003056",
+      }}>
+        {weight}%
+      </div>
+    </div>
+  );
+}
+
+function ScoreBar({ answers, questions }) {
+  const answered = questions.filter(q => answers[q.id]);
+  if (answered.length === 0) return null;
+  const counts = { yes: 0, partial: 0, no: 0, unclear: 0 };
+  answered.forEach(q => counts[answers[q.id]]++);
+  return (
+    <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", marginTop: 6, gap: 1 }}>
+      {counts.yes > 0 && <div style={{ flex: counts.yes, background: "#16a34a" }} />}
+      {counts.partial > 0 && <div style={{ flex: counts.partial, background: "#ca8a04" }} />}
+      {counts.no > 0 && <div style={{ flex: counts.no, background: "#dc2626" }} />}
+      {counts.unclear > 0 && <div style={{ flex: counts.unclear, background: "#9ca3af" }} />}
+    </div>
+  );
+}
+
+function QuestionCard({ question, answer, onAnswer, expanded, onToggle }) {
+  return (
+    <div style={{
+      border: "1px solid #e5e7eb", borderRadius: 8, marginBottom: 8,
+      background: answer ? ANSWER_OPTIONS.find(o => o.value === answer)?.bg : "#fff",
+      transition: "all 0.2s"
+    }}>
+      <div style={{ padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 10 }} onClick={onToggle}>
+        <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>
+          {answer ? ANSWER_OPTIONS.find(o => o.value === answer)?.emoji : "\u2B1C"}
+        </span>
+        <span style={{ fontSize: 14, lineHeight: 1.5, flex: 1, color: "#1f2937" }}>{question.text}</span>
+        <span style={{ fontSize: 12, color: "#9ca3af", flexShrink: 0, transform: expanded ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>{"\u25BC"}</span>
+      </div>
+      {expanded && (
+        <div style={{ padding: "0 16px 14px 42px" }}>
+          <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5, marginBottom: 10, fontStyle: "italic", background: "#f9fafb", padding: "8px 10px", borderRadius: 6 }}>
+            {"\uD83D\uDCA1"} {question.hint}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {ANSWER_OPTIONS.map(opt => (
+              <button key={opt.value}
+                onClick={(e) => { e.stopPropagation(); onAnswer(question.id, opt.value); }}
+                style={{
+                  padding: "5px 12px", borderRadius: 6,
+                  border: `2px solid ${answer === opt.value ? opt.border : "#e5e7eb"}`,
+                  background: answer === opt.value ? opt.bg : "#fff",
+                  cursor: "pointer", fontSize: 13,
+                  fontWeight: answer === opt.value ? 600 : 400, color: "#374151",
+                  transition: "all 0.15s",
+                }}
+              >
+                {opt.emoji} {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GuidelineSection({ guideline, answers, onAnswer, isOpen, onToggle }) {
+  const [expandedQ, setExpandedQ] = useState(null);
+  const answered = guideline.questions.filter(q => answers[q.id]).length;
+  const total = guideline.questions.length;
+  const sectionScore = computeSectionScore(guideline, answers);
+
+  return (
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, marginBottom: 12, overflow: "hidden", background: "#fff" }}>
+      <div onClick={onToggle} style={{
+        padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+        borderLeft: `5px solid ${guideline.color}`,
+        background: isOpen ? "#f8fafc" : "#fff", transition: "background 0.2s",
+      }}>
+        <WeightBadge weight={guideline.weight} />
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 18 }}>{guideline.icon}</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: "#1e293b" }}>{guideline.title}</span>
+            <span style={{
+              fontSize: 10, fontWeight: 700, color: "#fff", borderRadius: 10,
+              padding: "2px 8px", background: guideline.color, whiteSpace: "nowrap",
+            }}>Prio {guideline.rank}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 3 }}>
+            <span style={{ fontSize: 12, color: "#64748b" }}>{answered}/{total} beantwortet</span>
+            {sectionScore !== null && (
+              <span style={{
+                fontSize: 12, fontWeight: 700,
+                color: sectionScore >= 75 ? "#16a34a" : sectionScore >= 50 ? "#ca8a04" : "#dc2626"
+              }}>{"\u2192"} {sectionScore}%</span>
+            )}
+          </div>
+          <ScoreBar answers={answers} questions={guideline.questions} />
+        </div>
+        <span style={{ fontSize: 14, color: "#94a3b8", transform: isOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }}>{"\u25BC"}</span>
+      </div>
+      {isOpen && (
+        <div style={{ padding: "10px 16px 16px" }}>
+          {guideline.questions.map(q => (
+            <QuestionCard key={q.id} question={q} answer={answers[q.id]} onAnswer={onAnswer}
+              expanded={expandedQ === q.id}
+              onToggle={() => setExpandedQ(expandedQ === q.id ? null : q.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Summary({ answers, functionName }) {
+  const answeredQ = Object.keys(answers).length;
+  if (answeredQ === 0) return null;
+
+  const weightedScore = computeWeightedScore(answers);
+  const counts = { yes: 0, partial: 0, no: 0, unclear: 0 };
+  Object.values(answers).forEach(v => counts[v]++);
+
+  const issues = [];
+  const partials = [];
+  guidelines.forEach(g => {
+    g.questions.forEach(q => {
+      if (answers[q.id] === "no") issues.push({ guideline: g.title, question: q.text, icon: g.icon, weight: g.weight, rank: g.rank, color: g.color });
+      if (answers[q.id] === "partial") partials.push({ guideline: g.title, question: q.text, icon: g.icon, weight: g.weight, rank: g.rank, color: g.color });
+    });
+  });
+
+  const guidelineScores = guidelines.map(g => {
+    const s = computeSectionScore(g, answers);
+    return { ...g, sectionScore: s };
+  }).filter(g => g.sectionScore !== null);
+
+  return (
+    <div style={{ marginTop: 20, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#f8fafc" }}>
+      <div style={{ padding: "20px 20px 16px", textAlign: "center", borderBottom: "1px solid #e5e7eb" }}>
+        <h3 style={{ margin: "0 0 4px", fontSize: 16, color: "#1e293b" }}>
+          {"\uD83D\uDCCB"} Gewichtete Auswertung {functionName ? `– \u201E${functionName}\u201C` : ""}
+        </h3>
+        <div style={{ fontSize: 48, fontWeight: 900, color: weightedScore >= 75 ? "#16a34a" : weightedScore >= 50 ? "#ca8a04" : "#dc2626", lineHeight: 1.2 }}>
+          {weightedScore}%
+        </div>
+        <div style={{ fontSize: 12, color: "#64748b" }}>gewichteter Konformitätsscore</div>
+        <div style={{ display: "flex", height: 14, borderRadius: 7, overflow: "hidden", gap: 2, marginTop: 12 }}>
+          {counts.yes > 0 && <div style={{ flex: counts.yes, background: "#16a34a", borderRadius: 4 }} />}
+          {counts.partial > 0 && <div style={{ flex: counts.partial, background: "#ca8a04", borderRadius: 4 }} />}
+          {counts.no > 0 && <div style={{ flex: counts.no, background: "#dc2626", borderRadius: 4 }} />}
+          {counts.unclear > 0 && <div style={{ flex: counts.unclear, background: "#9ca3af", borderRadius: 4 }} />}
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 8 }}>
+          {ANSWER_OPTIONS.map(opt => (
+            <div key={opt.value} style={{ textAlign: "center" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: opt.border }}>{counts[opt.value]}</span>
+              <span style={{ fontSize: 11, color: "#64748b", marginLeft: 3 }}>{opt.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {guidelineScores.length > 0 && (
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid #e5e7eb" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", marginBottom: 10 }}>Ergebnis pro Leitlinie (gewichtet)</div>
+          {guidelineScores.map(g => (
+            <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 14, width: 22, textAlign: "center" }}>{g.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ fontSize: 12, color: "#374151" }}>
+                    <strong>P{g.rank}</strong> {g.title}
+                  </span>
+                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>{g.weight}% Gewicht</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ flex: 1, height: 8, background: "#e5e7eb", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{
+                      width: `${g.sectionScore}%`, height: "100%", borderRadius: 4,
+                      background: g.sectionScore >= 75 ? "#16a34a" : g.sectionScore >= 50 ? "#ca8a04" : "#dc2626",
+                      transition: "width 0.3s",
+                    }} />
+                  </div>
+                  <span style={{
+                    fontSize: 13, fontWeight: 700, minWidth: 36, textAlign: "right",
+                    color: g.sectionScore >= 75 ? "#16a34a" : g.sectionScore >= 50 ? "#ca8a04" : "#dc2626",
+                  }}>{g.sectionScore}%</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ padding: "14px 20px" }}>
+        {issues.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: "#dc2626", marginBottom: 6 }}>{"\u26A0\uFE0F"} Handlungsbedarf (Nein):</div>
+            {issues.map((issue, i) => (
+              <div key={i} style={{ fontSize: 12, color: "#374151", padding: "5px 0", lineHeight: 1.5, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: "#fff", background: issue.color,
+                  borderRadius: 8, padding: "1px 6px", whiteSpace: "nowrap", marginTop: 2,
+                }}>P{issue.rank} {"\u00B7"} {issue.weight}%</span>
+                <span>{issue.icon} <strong>{issue.guideline}:</strong> {issue.question}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {partials.length > 0 && (
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: "#ca8a04", marginBottom: 6 }}>{"\uD83D\uDD0D"} Prüfbedarf (Teilweise):</div>
+            {partials.map((p, i) => (
+              <div key={i} style={{ fontSize: 12, color: "#374151", padding: "5px 0", lineHeight: 1.5, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: "#fff", background: p.color,
+                  borderRadius: 8, padding: "1px 6px", whiteSpace: "nowrap", marginTop: 2,
+                }}>P{p.rank} {"\u00B7"} {p.weight}%</span>
+                <span>{p.icon} <strong>{p.guideline}:</strong> {p.question}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {issues.length === 0 && partials.length === 0 && (
+          <div style={{ fontSize: 14, color: "#16a34a", fontWeight: 600 }}>
+            {"\u2705"} Alle beantworteten Kriterien sind erfüllt – Verortung erscheint leitlinienkonform.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VerortungsCheckliste() {
+  const [functionName, setFunctionName] = useState("");
+  const [targetUnit, setTargetUnit] = useState("");
+  const [answers, setAnswers] = useState({});
+  const [openSection, setOpenSection] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  const handleAnswer = useCallback((questionId, value) => {
+    setAnswers(prev => {
+      if (prev[questionId] === value) {
+        const next = { ...prev };
+        delete next[questionId];
+        return next;
+      }
+      return { ...prev, [questionId]: value };
+    });
+  }, []);
+
+  const handleReset = () => {
+    if (functionName && Object.keys(answers).length > 0) {
+      setHistory(prev => [...prev, {
+        name: functionName, unit: targetUnit, answers: { ...answers },
+        score: computeWeightedScore(answers),
+        timestamp: new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
+      }]);
+    }
+    setFunctionName("");
+    setTargetUnit("");
+    setAnswers({});
+    setOpenSection(null);
+  };
+
+  const units = [
+    "Unternehmensholding",
+    "M&E Holding",
+    "LM Providing / Sales & Service",
+    "Dezentral / Standort",
+    "Value Stream / Produktlinie",
+    "Sonstiges",
+  ];
+
+  return (
+    <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <span style={{ fontSize: 24 }}>{"\uD83D\uDCCB"}</span>
+          <h1 style={{ margin: 0, fontSize: 20, color: "#003056", fontWeight: 800 }}>Verortungs-Check</h1>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>
+          Prüfe systematisch anhand der 6 gewichteten Leitlinien, ob eine Funktion oder OE richtig verortet ist.
+        </p>
+      </div>
+
+      <div style={{
+        background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 16px",
+        marginBottom: 16, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginRight: 4 }}>Gewichtung:</span>
+        {guidelines.map(g => (
+          <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 13 }}>{g.icon}</span>
+            <span style={{
+              fontSize: 10, fontWeight: 700, color: "#fff", background: g.color,
+              borderRadius: 8, padding: "1px 7px",
+            }}>{g.weight}%</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 18, marginBottom: 20 }}>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 5 }}>Funktion / Organisationseinheit</label>
+          <input
+            type="text" value={functionName}
+            onChange={e => setFunctionName(e.target.value)}
+            placeholder="z.B. IT, HR, IP, Einkauf, QM/RA, Vertrieb DACH ..."
+            style={{ width: "100%", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14, boxSizing: "border-box", outline: "none" }}
+          />
+        </div>
+        <div>
+          <label style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block", marginBottom: 5 }}>Geplante Verortung</label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {units.map(u => (
+              <button key={u}
+                onClick={() => setTargetUnit(targetUnit === u ? "" : u)}
+                style={{
+                  padding: "6px 12px", borderRadius: 20,
+                  border: `2px solid ${targetUnit === u ? "#003056" : "#e5e7eb"}`,
+                  background: targetUnit === u ? "#003056" : "#fff",
+                  color: targetUnit === u ? "#fff" : "#374151",
+                  fontSize: 12, cursor: "pointer",
+                  fontWeight: targetUnit === u ? 600 : 400, transition: "all 0.15s",
+                }}
+              >{u}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {guidelines.map(g => (
+        <GuidelineSection key={g.id} guideline={g} answers={answers} onAnswer={handleAnswer}
+          isOpen={openSection === g.id}
+          onToggle={() => setOpenSection(openSection === g.id ? null : g.id)}
+        />
+      ))}
+
+      <Summary answers={answers} functionName={functionName} />
+
+      <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "center" }}>
+        <button onClick={handleReset} style={{
+          padding: "10px 24px", borderRadius: 8, border: "none",
+          background: "#003056", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer",
+        }}>{"\u21BB"} Nächste Funktion prüfen</button>
+      </div>
+
+      {history.length > 0 && (
+        <div style={{ marginTop: 28, border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, background: "#fafafa" }}>
+          <h3 style={{ margin: "0 0 10px", fontSize: 14, color: "#1e293b" }}>{"\uD83D\uDCDC"} Bisherige Prüfungen</h3>
+          {history.map((h, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < history.length - 1 ? "1px solid #e5e7eb" : "none" }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: h.score >= 75 ? "#16a34a" : h.score >= 50 ? "#ca8a04" : "#dc2626" }}>{h.score ?? "\u2013"}%</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{h.name}</div>
+                <div style={{ fontSize: 11, color: "#64748b" }}>{h.unit} {"\u00B7"} {h.timestamp}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<VerortungsCheckliste />);
+  </script>
+</body>
+</html>
